@@ -1,17 +1,23 @@
 steps:
-  # Paso 1: Obtener el token de GitHub desde Secret Manager y clonar el repositorio
+  # Paso 1: Clonar el repositorio de GitHub utilizando el token desde Secret Manager
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: 'bash'
+    id: Clone GitHub repository
+    entrypoint: bash
     args:
       - '-c'
       - |
-        TOKEN=$(gcloud secrets versions access latest --secret="GITHUB_TOKEN")
-        git clone https://$TOKEN@github.com/amoreno-gene/orchestration.git
+        git clone https://$GH_TOKEN@github.com/amoreno-gene/orchestration.git
         cd orchestration
 
   # Paso 2: Sincronizar los DAGs con el bucket de Composer
   - name: 'gcr.io/cloud-builders/gsutil'
     args: ['rsync', '-r', 'dags/', 'gs://europe-west4-composer-dev-20d58bfa-bucket/dags/']
+
+# Definir secretos disponibles desde Secret Manager
+availableSecrets:
+  secretManager:
+  - versionName: projects/extracciones-426907/secrets/GITHUB_TOKEN/versions/latest
+    env: GH_TOKEN
 
 options:
   logging: CLOUD_LOGGING_ONLY
