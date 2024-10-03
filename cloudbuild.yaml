@@ -1,33 +1,19 @@
 steps:
-  # Paso 1: Clonar el repositorio de GitHub utilizando el token desde Secret Manager
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    id: Clone GitHub repository
-    entrypoint: bash
-    args:
-      - '-c'
-      - |
-        TOKEN=$(gcloud secrets versions access latest --secret="GITHUB_TOKEN")
-        git clone https://$TOKEN@github.com/amoreno-gene/orchestration.git
-        cd orchestration
-
-  # Paso 2: Crear una pull request en GitHub
+  # Paso 1: Crear una pull request en GitHub utilizando el token desde Secret Manager
   - name: 'launcher.gcr.io/google/ubuntu1604'
     id: Create GitHub pull request
     entrypoint: bash
     args:
       - -c
       - |
-        curl -X POST -H "Authorization: Bearer $TOKEN" -H 'Accept: application/vnd.github.v3+json' https://api.github.com/repos/amoreno-gene/orchestration/pulls -d '{"head":"HEAD_BRANCH","base":"BASE_BRANCH", "title":"NEW_PR"}'
-
-  # Paso 3: Sincronizar los DAGs con el bucket de Composer
-  - name: 'gcr.io/cloud-builders/gsutil'
-    args: ['rsync', '-r', 'dags/', 'gs://europe-west4-composer-dev-20d58bfa-bucket/dags/']
+        curl -X POST -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github.v3+json' https://api.github.com/repos/amoreno-gene/orchestration/pulls -d '{"head":"HEAD_BRANCH","base":"BASE_BRANCH", "title":"NEW_PR"}'
+    secretEnv: ['GH_TOKEN']  # La variable de entorno se define aquí
 
 # Definir secretos disponibles desde Secret Manager
 availableSecrets:
   secretManager:
   - versionName: projects/extracciones-426907/secrets/GITHUB_TOKEN/versions/latest
-    env: TOKEN  # Aquí se establece TOKEN como variable de entorno
+    env: GH_TOKEN  # Aquí se establece GH_TOKEN como variable de entorno
 
 options:
   logging: CLOUD_LOGGING_ONLY
