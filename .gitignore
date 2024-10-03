@@ -1,0 +1,40 @@
+# Ignorar archivos temporales de Python y carpetas __pycache__
+*.pyc
+__pycache__/
+extractors/**/__pycache__/
+integrators/**/__pycache__/
+
+# Ignorar archivos de logs locales y configuraciones temporales
+*.log
+*.swp
+
+# Ignorar archivos de datos locales
+data/
+*.csv
+*.json
+
+# Ignorar archivos de entorno virtual
+venv/
+env/
+.venv/
+
+# Ignorar el archivo requirements.txt
+requirements.txt
+
+# Ignorar archivo de licencia (opcional, si no deseas seguir la licencia)
+LICENSE
+
+# Ignorar archivos de configuración del editor (Visual Studio Code, PyCharm, etc.)
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Ignorar binarios compilados
+*.o
+*.so
+*.a
+*.dylib
+
+# Ignorar carpetas o archivos de datos de pruebas en local (si existe una carpeta específica para pruebas locales)
+tests/
