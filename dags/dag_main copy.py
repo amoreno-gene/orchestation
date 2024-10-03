@@ -13,7 +13,7 @@ from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from datetime import datetime as dt, timedelta
 from airflow.models import Variable
 import json
-import requests
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
