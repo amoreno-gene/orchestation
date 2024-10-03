@@ -1,0 +1,18 @@
+steps:
+  # Paso 1: Clonar el código fuente desde GitHub
+  - name: 'gcr.io/cloud-builders/git'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        git clone https://github.com/$REPO_OWNER/$REPO_NAME.git
+        cd $REPO_NAME
+
+  # Paso 2: Sincronizar los DAGs con el bucket de Composer
+  - name: 'gcr.io/cloud-builders/gsutil'
+    args: ['rsync', '-r', 'dags/', 'gs://europe-west4-composer-dev-20d58bfa-bucket/dags/']
+
+# Sustituciones personalizadas
+substitutions:
+  _REPO_OWNER: "amoreno-gene"
+  _REPO_NAME: "orchestration"
