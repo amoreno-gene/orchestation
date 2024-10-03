@@ -5,7 +5,8 @@ steps:
     args:
       - '-c'
       - |
-        git clone https://$(gcloud secrets versions access latest --secret="GITHUB_TOKEN")@github.com/amoreno-gene/orchestration.git
+        TOKEN=$(gcloud secrets versions access latest --secret="GITHUB_TOKEN")
+        git clone https://$TOKEN@github.com/amoreno-gene/orchestration.git
         cd orchestration
 
   # Paso 2: Sincronizar los DAGs con el bucket de Composer
