@@ -1,5 +1,6 @@
 steps:
   # Paso 1: Clonar el repositorio de GitHub utilizando el token desde Secret Manager
+  #sarralao
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: Clone GitHub repository
     entrypoint: bash
