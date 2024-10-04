@@ -6,6 +6,7 @@ from airflow.utils.dates import days_ago
 import os
 import importlib.util
 import logging
+from datetime import datetime as dt
 from uploaders.upload_to_gcs import upload_to_gcs  # Importar la función desde tu archivo
 
 # Configure logging
