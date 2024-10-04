@@ -1,6 +1,5 @@
-steps:
+steps: 
   # Paso 1: Clonar el repositorio de GitHub utilizando el token desde Secret Manager
-  #sarralao
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: Clone GitHub repository
     entrypoint: bash
@@ -11,15 +10,15 @@ steps:
         cd orchestration
     secretEnv: ['GH_TOKEN']
 
-  # Paso 2: Sincronizar los DAGs con el bucket de Composer
+  # Paso 2: Sincronizar los DAGs con el bucket de Composer y eliminar archivos que no están en el repo
   - name: 'gcr.io/cloud-builders/gsutil'
-    args: ['rsync', '-r', 'dags/', 'gs://europe-west4-composer-dev-20d58bfa-bucket/dags/']
+    args: ['rsync', '-r', '-d', 'dags/', 'gs://europe-west4-composer-dev-20d58bfa-bucket/dags/']
 
 # Definir secretos disponibles desde Secret Manager
 availableSecrets:
   secretManager:
   - versionName: projects/extracciones-426907/secrets/GITHUB_TOKEN/versions/latest
-    env: GH_TOKEN  # Aquí se establece GH_TOKEN como variable de entorno
+    env: GH_TOKEN
 
 options:
   logging: CLOUD_LOGGING_ONLY
