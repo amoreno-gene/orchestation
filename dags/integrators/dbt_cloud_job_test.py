@@ -19,6 +19,8 @@ test_dbt_connection = DbtCloudRunJobOperator(
     task_id='run_dbt_job',
     dbt_cloud_conn_id='dbt_cloud_conn',  # Usa el Connection ID que has configurado
     job_id=dbt_job_id,  # Utilizar la variable que contiene el Job ID
+    check_interval=10,
+    timeout=300,
     dag=dag
 )
 
