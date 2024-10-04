@@ -20,7 +20,7 @@ date = "{{ ds_nodash }}"
 extractors_dir = os.path.join(os.path.dirname(__file__), "extractors")
 
 # Google Cloud Storage bucket
-GCS_BUCKET_NAME = "intermediate"
+GCS_BUCKET_NAME = "intermediate-datalake"
 
 # Function to dynamically import a module
 def import_module_from_path(module_name, file_path):
