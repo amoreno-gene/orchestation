@@ -22,7 +22,7 @@ with DAG(
     # Operador para ejecutar una consulta SQL en Snowflake
     run_snowflake_query = SnowflakeOperator(
         task_id='run_snowflake_query',
-        snowflake_conn_id='my_snowflake_conn',  # Asegúrate de que esta conexión está configurada en Airflow
+        snowflake_conn_id='Snowflake_stg_schema_conn',  # Asegúrate de que esta conexión está configurada en Airflow
         sql="SELECT CURRENT_VERSION();"
     )
 
