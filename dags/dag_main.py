@@ -5,10 +5,8 @@ from airflow.utils.task_group import TaskGroup
 from airflow.utils.dates import days_ago
 import os
 import importlib.util
-from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.models import Variable
-from datetime import datetime as dt
 import logging
+from uploaders.upload_to_gcs import upload_to_gcs  # Importar la función desde tu archivo
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -39,15 +37,6 @@ for root, dirs, files in os.walk(extractors_dir):
             module_name = file[:-3]
             extractor_scripts.append((module_name, file_path))
 
-# Function to upload a file to Google Cloud Storage
-def upload_to_gcs(file_path: str, folder_path: str) -> None:
-    gcs_hook = GCSHook()
-    with open(file_path, 'r') as file:
-        data = file.read()
-    blob_name = f"{folder_path}/{os.path.basename(file_path)}"
-    gcs_hook.upload(bucket_name=GCS_BUCKET_NAME, object_name=blob_name, data=data)
-    logger.info(f"Uploaded {file_path} to gs://{GCS_BUCKET_NAME}/{blob_name}")
-
 # DAG definition
 @dag(
     start_date=days_ago(1),
@@ -68,7 +57,7 @@ def data_to_gcs_airbyte_dbt():
                 timestamp = dt.now().strftime("%Y%m%d%H%M%S")
                 filename = f"{os.path.splitext(os.path.basename(csv_file))[0]}_{timestamp}.csv"
                 folder_path = os.path.relpath(file_path, start=extractors_dir).replace(os.path.basename(file_path), "").replace("\\", "/")
-                upload_to_gcs(csv_file, folder_path)
+                upload_to_gcs(csv_file, filename, folder_path)  # Utilizar la función importada para subir el archivo
                 logger.info(f"Completed extraction and upload for {module_name}")
 
             extract_and_upload()
