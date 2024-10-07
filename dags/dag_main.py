@@ -20,7 +20,7 @@ ORQUESTADOR_ID = 1  # ID del orquestador que estás ejecutando
 
 # Consulta SQL para obtener los orígenes activos
 SNOWFLAKE_ORIGINS_QUERY = f"""
-    SELECT id_origen, nombre_origen
+    SELECT o.id_origen, o.nombre_origen
     FROM origenes_orquestadores oo
     JOIN origenes o ON oo.id_origen = o.id_origen
     WHERE oo.id_orquestador = {ORQUESTADOR_ID}
