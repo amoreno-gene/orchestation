@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Definir parámetros
-SNOWFLAKE_CONN_ID = 'Snowflake_stg_schema_conn'
+SNOWFLAKE_CONN_ID = 'Snowflake_orchestation_metadata_schema_conn'
 GCS_BUCKET_NAME = "intermediate-datalake"
 ORQUESTADOR_ID = 1  # ID del orquestador que estás ejecutando
 
