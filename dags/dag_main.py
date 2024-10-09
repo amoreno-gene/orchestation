@@ -21,7 +21,7 @@ ORQUESTADOR_ID = 1
 # Consulta SQL para obtener los orígenes activos
 SNOWFLAKE_ORIGINS_QUERY = f"""
     SELECT 
-        o.id_origen, o.nombre_origen, cu.nombre AS nombre_caso_uso, cu.area_negocio
+        o.id_origen, o.nombre_origen, cu.nombre_caso AS nombre_caso_uso, cu.area_negocio
     FROM    origenes_orquestadores oo
         JOIN origenes o ON oo.id_origen = o.id_origen
         JOIN casos_uso cu ON o.id_caso_uso = cu.id_caso_uso
@@ -66,11 +66,11 @@ def dag_main_orquestador_uno():
         for origin in origins:
             id_origen, nombre_origen, nombre_caso_uso, area_negocio = origin
             logger.info(f"Extrayendo datos para el origen: {nombre_origen} (ID: {id_origen}), Caso de uso: {nombre_caso_uso}, Área de negocio: {area_negocio}")
-            
+
             # Ruta del script de extracción correspondiente dentro de la carpeta del área de negocio y caso de uso
             extractor_script = f"extract_{nombre_origen.lower()}.py"
             extractor_path = os.path.join(f"{area_negocio}/{nombre_caso_uso}/extractors", extractor_script)
-            
+
             # Verificar si el script existe
             if os.path.exists(extractor_path):
                 module = import_module_from_path(nombre_origen.lower(), extractor_path)
