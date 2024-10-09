@@ -6,6 +6,7 @@ from airflow.utils.dates import days_ago
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 import os
 import logging
+import importlib
 from datetime import datetime as dt
 from uploaders.upload_to_gcs import upload_to_gcs  # Importar la función desde tu archivo
 
