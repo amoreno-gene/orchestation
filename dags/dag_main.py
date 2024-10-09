@@ -69,7 +69,7 @@ def dag_main_orquestador_uno():
 
             # Ruta del script de extracción correspondiente dentro de la carpeta del área de negocio y caso de uso
             extractor_script = f"extract_{nombre_origen.lower()}.py"
-            extractor_path = os.path.join(f"dags/extractors/{area_negocio}/{nombre_caso_uso}/", extractor_script)
+            extractor_path = os.path.join(f"/home/airflow/gcs/dags/extractors/{area_negocio}/{nombre_caso_uso}/", extractor_script)
 
             # Log para verificar la ruta construida
             logger.info(f"Buscando script de extracción en la ruta: {extractor_path}")
