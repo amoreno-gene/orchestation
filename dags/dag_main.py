@@ -69,7 +69,10 @@ def dag_main_orquestador_uno():
 
             # Ruta del script de extracción correspondiente dentro de la carpeta del área de negocio y caso de uso
             extractor_script = f"extract_{nombre_origen.lower()}.py"
-            extractor_path = os.path.join(f"extractors/{area_negocio}/{nombre_caso_uso}/", extractor_script)
+            extractor_path = os.path.join(f"dags/extractors/{area_negocio}/{nombre_caso_uso}/", extractor_script)
+
+            # Log para verificar la ruta construida
+            logger.info(f"Buscando script de extracción en la ruta: {extractor_path}")
 
             # Verificar si el script existe
             if os.path.exists(extractor_path):
@@ -81,7 +84,7 @@ def dag_main_orquestador_uno():
                 upload_to_gcs(csv_file, filename, folder_path)  # Subida del archivo a GCS
                 logger.info(f"Datos extraídos y subidos para {nombre_origen}, Caso de uso {nombre_caso_uso} en área {area_negocio}")
             else:
-                logger.error(f"No se encontró el script de extracción para {nombre_origen} en el caso de uso {nombre_caso_uso} y área de negocio {area_negocio}")
+                logger.error(f"No se encontró el script de extracción en la ruta: {extractor_path} para el origen {nombre_origen} en el caso de uso {nombre_caso_uso} y área de negocio {area_negocio}")
 
 
     # Definir flujo de tareas
