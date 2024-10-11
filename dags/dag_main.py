@@ -98,7 +98,6 @@ def load_files_to_snowflake(hook, stage_name, table_name):
 
     cur.close()
 
-# Función para registrar archivos procesados en la tabla SH_CONTROL.archivos_procesados
 def update_processed_files(hook, stage_name):
     conn = hook.get_conn()
     cur = conn.cursor()
@@ -117,6 +116,7 @@ def update_processed_files(hook, stage_name):
         logger.error(f"Error al registrar archivos procesados: {str(e)}")
     
     cur.close()
+
 
 
 # Definir DAG
@@ -175,33 +175,27 @@ def dag_main_orquestador_uno():
     
         return uploaded_files  # Devolver un diccionario en lugar de una lista
 
+
     # Tarea para cargar archivos a Snowflake
     @task(task_id="load_to_snowflake")
     def load_to_snowflake(uploaded_files):
         stg_hook = SnowflakeHook(snowflake_conn_id=SNOWFLAKE_STG_CONN_ID)  # Cargar a SH_STG usando la conexión específica
         stage_name = 'my_gcs_stage'
-       
         for nombre_origen, file in uploaded_files.items():
             table_name = nombre_origen  # Usar el nombre del origen para la tabla
             load_files_to_snowflake(stg_hook, stage_name, table_name)
 
-    # Tarea para registrar los archivos procesados en la tabla de control
-    @task(task_id="update_processed_files")
-    def update_processed_files(uploaded_files):
-        stg_hook = SnowflakeHook(snowflake_conn_id=SNOWFLAKE_STG_CONN_ID)
-        stage_name = 'my_gcs_stage'
-
-        # Registrar los archivos que han sido cargados a Snowflake
-        for file in uploaded_files.values():
-            logger.info(f"Registrando archivo procesado: {file}")
-            update_processed_files(stg_hook, stage_name)
+        # Después de cargar los archivos, actualizar la tabla de control con los archivos procesados
+        update_processed_files(stg_hook, stage_name)
 
     # Flujo del DAG
     origins = get_active_origins()
     uploaded_files = extract_and_upload_dynamic(origins)
-    load_to_snowflake(uploaded_files)
-    update_processed_files(uploaded_files)
+    load_to_snowflake_task = load_to_snowflake(uploaded_files)
 
-    t0 >> origins >> uploaded_files >> load_to_snowflake >> update_processed_files
+    # Definir la secuencia de tareas
+    t0 >> origins >> uploaded_files >> load_to_snowflake_task
 
+# Instancia del DAG
 dag_main_orquestador_uno()
+
