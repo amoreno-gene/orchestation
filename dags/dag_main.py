@@ -81,13 +81,11 @@ def load_files_to_snowflake(hook, stage_name, table_name):
     conn = hook.get_conn()
     cur = conn.cursor()
 
-    # Ejecutar COPY INTO, filtrando por los archivos no procesados
+    # Ejecutar COPY INTO sin subconsultas en FILES
     copy_into_sql = f"""
     COPY INTO {table_name}
     FROM @{stage_name}
     FILE_FORMAT = (FORMAT_NAME = 'my_csv_format')
-    FILES = (SELECT METADATA$FILENAME FROM @{stage_name}
-             WHERE METADATA$FILENAME NOT IN (SELECT nombre_archivo FROM SH_CONTROL.archivos_procesados))
     ON_ERROR = 'CONTINUE';
     """
     try:
@@ -97,6 +95,7 @@ def load_files_to_snowflake(hook, stage_name, table_name):
         logger.error(f"Error al ejecutar COPY INTO para {table_name}: {str(e)}")
 
     cur.close()
+
 
 def update_processed_files(hook, stage_name):
     conn = hook.get_conn()
