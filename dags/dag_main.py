@@ -14,7 +14,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Definir parámetros
-SNOWFLAKE_CONN_ID = 'Snowflake_orchestation_metadata_schema_conn'
+SNOWFLAKE_CONN_ID = 'Snowflake_orchestation_metadata_schema_conn'  # Orquestador (metadatos)
+SNOWFLAKE_STG_CONN_ID = 'Snowflake_stg_schema_conn'  # Para la conexión que apunta a SH_STG
 GCS_BUCKET_NAME = "intermediate-datalake"
 ORQUESTADOR_ID = 1  
 
@@ -57,7 +58,7 @@ def create_or_modify_table_from_csv(hook, table_name, csv_file):
         # Crear tabla si no existe
         columns_sql = ', '.join([f"{col} STRING" for col in columns])
         create_table_sql = f"CREATE TABLE {table_name} ({columns_sql});"
-        logger.info(f"Creando tabla: {create_table_sql}")
+        logger.info(f"Creando tabla en SH_STG: {create_table_sql}")
         cur.execute(create_table_sql)
     else:
         # Si la tabla existe, verificar si faltan columnas y agregarlas
@@ -101,7 +102,7 @@ def dag_main_orquestador_uno():
     # Tarea para consultar orígenes activos y el caso de uso en Snowflake
     @task(task_id="get_active_origins")
     def get_active_origins():
-        hook = SnowflakeHook(snowflake_conn_id=SNOWFLAKE_CONN_ID)
+        hook = SnowflakeHook(snowflake_conn_id=SNOWFLAKE_CONN_ID)  # Metadatos desde esta conexión
         conn = hook.get_conn()
         cur = conn.cursor()
         logger.info("Consultando orígenes activos desde Snowflake...")
@@ -136,8 +137,8 @@ def dag_main_orquestador_uno():
                 uploaded_files.append(f"{folder_path}/{filename}")
 
                 # Crear tabla o modificarla según el esquema del CSV
-                hook = SnowflakeHook(snowflake_conn_id=SNOWFLAKE_CONN_ID)
-                create_or_modify_table_from_csv(hook, nombre_origen, csv_file)
+                stg_hook = SnowflakeHook(snowflake_conn_id=SNOWFLAKE_STG_CONN_ID)  # Usamos la conexión de SH_STG
+                create_or_modify_table_from_csv(stg_hook, nombre_origen, csv_file)
             else:
                 logger.error(f"No se encontró el script de extracción en la ruta: {extractor_path} para el origen {nombre_origen} en el caso de uso {nombre_caso_uso} y área de negocio {area_negocio}")
         return uploaded_files
@@ -145,11 +146,11 @@ def dag_main_orquestador_uno():
     # Tarea para cargar archivos a Snowflake
     @task(task_id="load_to_snowflake")
     def load_to_snowflake(uploaded_files):
-        hook = SnowflakeHook(snowflake_conn_id=SNOWFLAKE_CONN_ID)
+        stg_hook = SnowflakeHook(snowflake_conn_id=SNOWFLAKE_STG_CONN_ID)  # Cargar a SH_STG usando la conexión específica
         stage_name = 'my_gcs_stage'
         for file in uploaded_files:
             table_name = os.path.basename(file).split('_')[0]  # Usar el nombre del archivo para la tabla
-            load_files_to_snowflake(hook, stage_name, table_name, [file])
+            load_files_to_snowflake(stg_hook, stage_name, table_name, [file])
 
     # Flujo del DAG
     origins = get_active_origins()
