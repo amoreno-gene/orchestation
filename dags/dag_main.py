@@ -1,7 +1,6 @@
 from airflow import DAG
 from airflow.decorators import dag, task
 from airflow.operators.dummy import DummyOperator
-from airflow.utils.task_group import TaskGroup
 from airflow.utils.dates import days_ago
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 import os
@@ -10,7 +9,7 @@ import importlib
 from datetime import datetime as dt
 from uploaders.upload_to_gcs import upload_to_gcs  # Importar la función desde tu archivo
 
-# Configure logging
+# Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -30,7 +29,6 @@ SNOWFLAKE_ORIGINS_QUERY = f"""
         oo.id_orquestador = {ORQUESTADOR_ID}
         AND o.activo = TRUE
         AND cu.activo = TRUE;
-
 """
 
 # Función para importar dinámicamente un módulo de un archivo
@@ -39,6 +37,57 @@ def import_module_from_path(module_name, file_path):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+# Función para crear o modificar tabla en Snowflake basándose en el esquema del CSV
+def create_or_modify_table_from_csv(hook, table_name, csv_file):
+    import csv
+    with open(csv_file, 'r') as file:
+        reader = csv.reader(file)
+        columns = next(reader)  # La primera fila contiene los nombres de las columnas
+    
+    conn = hook.get_conn()
+    cur = conn.cursor()
+
+    # Verificar si la tabla existe
+    table_exists_query = f"SHOW TABLES LIKE '{table_name}';"
+    cur.execute(table_exists_query)
+    table_exists = cur.fetchone()
+
+    if not table_exists:
+        # Crear tabla si no existe
+        columns_sql = ', '.join([f"{col} STRING" for col in columns])
+        create_table_sql = f"CREATE TABLE {table_name} ({columns_sql});"
+        logger.info(f"Creando tabla: {create_table_sql}")
+        cur.execute(create_table_sql)
+    else:
+        # Si la tabla existe, verificar si faltan columnas y agregarlas
+        describe_table_query = f"DESCRIBE TABLE {table_name};"
+        cur.execute(describe_table_query)
+        existing_columns = [row[0] for row in cur.fetchall()]
+
+        for col in columns:
+            if col not in existing_columns:
+                alter_table_sql = f"ALTER TABLE {table_name} ADD COLUMN {col} STRING;"
+                logger.info(f"Añadiendo columna: {alter_table_sql}")
+                cur.execute(alter_table_sql)
+    
+    cur.close()
+
+# Función para cargar archivos a Snowflake usando COPY INTO
+def load_files_to_snowflake(hook, stage_name, table_name, file_names):
+    conn = hook.get_conn()
+    cur = conn.cursor()
+
+    for file in file_names:
+        logger.info(f"Ejecutando COPY INTO para archivo: {file}")
+        copy_into_sql = f"""
+        COPY INTO {table_name}
+        FROM @{stage_name}/{file}
+        FILE_FORMAT = (FORMAT_NAME = 'my_csv_format')
+        ON_ERROR = 'CONTINUE';
+        """
+        cur.execute(copy_into_sql)
+    cur.close()
 
 # Definir DAG
 @dag(
@@ -62,8 +111,10 @@ def dag_main_orquestador_uno():
         logger.info(f"Orígenes obtenidos: {result}")
         return result
 
+    # Tarea para extraer y subir datos de orígenes activos
     @task(task_id="extract_and_upload_dynamic", multiple_outputs=True)
     def extract_and_upload_dynamic(origins):
+        uploaded_files = []
         for origin in origins:
             id_origen, nombre_origen, nombre_caso_uso, area_negocio = origin
             logger.info(f"Extrayendo datos para el origen: {nombre_origen} (ID: {id_origen}), Caso de uso: {nombre_caso_uso}, Área de negocio: {area_negocio}")
@@ -72,10 +123,8 @@ def dag_main_orquestador_uno():
             extractor_script = f"extract_{nombre_origen.lower()}.py"
             extractor_path = os.path.join(f"/home/airflow/gcs/dags/extractors/{area_negocio}/{nombre_caso_uso}/", extractor_script)
 
-            # Log para verificar la ruta construida
             logger.info(f"Buscando script de extracción en la ruta: {extractor_path}")
 
-            # Verificar si el script existe
             if os.path.exists(extractor_path):
                 module = import_module_from_path(nombre_origen.lower(), extractor_path)
                 csv_file = module.extract_and_process_data()  # Llamada a la función de extracción
@@ -84,14 +133,29 @@ def dag_main_orquestador_uno():
                 folder_path = f"{area_negocio}/orquestador_{ORQUESTADOR_ID}/origen_{id_origen}/caso_uso_{nombre_caso_uso}"
                 upload_to_gcs(csv_file, filename, folder_path)  # Subida del archivo a GCS
                 logger.info(f"Datos extraídos y subidos para {nombre_origen}, Caso de uso {nombre_caso_uso} en área {area_negocio}")
+                uploaded_files.append(f"{folder_path}/{filename}")
+
+                # Crear tabla o modificarla según el esquema del CSV
+                hook = SnowflakeHook(snowflake_conn_id=SNOWFLAKE_CONN_ID)
+                create_or_modify_table_from_csv(hook, nombre_origen, csv_file)
             else:
                 logger.error(f"No se encontró el script de extracción en la ruta: {extractor_path} para el origen {nombre_origen} en el caso de uso {nombre_caso_uso} y área de negocio {area_negocio}")
+        return uploaded_files
 
+    # Tarea para cargar archivos a Snowflake
+    @task(task_id="load_to_snowflake")
+    def load_to_snowflake(uploaded_files):
+        hook = SnowflakeHook(snowflake_conn_id=SNOWFLAKE_CONN_ID)
+        stage_name = 'my_gcs_stage'
+        for file in uploaded_files:
+            table_name = os.path.basename(file).split('_')[0]  # Usar el nombre del archivo para la tabla
+            load_files_to_snowflake(hook, stage_name, table_name, [file])
 
-    # Definir flujo de tareas
+    # Flujo del DAG
     origins = get_active_origins()
-    extract_and_upload_dynamic(origins)
+    uploaded_files = extract_and_upload_dynamic(origins)
+    load_to_snowflake(uploaded_files)
 
-    t0 >> origins
+    t0 >> origins >> uploaded_files
 
 dag_main_orquestador_uno()
