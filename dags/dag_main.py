@@ -117,7 +117,7 @@ def dag_main_orquestador_uno():
     # Tarea para extraer y subir datos de orígenes activos
     @task(task_id="extract_and_upload_dynamic", multiple_outputs=True)
     def extract_and_upload_dynamic(origins):
-        uploaded_files = []
+        uploaded_files = {}
         for origin in origins:
             id_origen, nombre_origen, nombre_caso_uso, area_negocio = origin
             logger.info(f"Extrayendo datos para el origen: {nombre_origen} (ID: {id_origen}), Caso de uso: {nombre_caso_uso}, Área de negocio: {area_negocio}")
@@ -136,14 +136,18 @@ def dag_main_orquestador_uno():
                 folder_path = f"{area_negocio}/orquestador_{ORQUESTADOR_ID}/origen_{id_origen}/caso_uso_{nombre_caso_uso}"
                 upload_to_gcs(csv_file, filename, folder_path)  # Subida del archivo a GCS
                 logger.info(f"Datos extraídos y subidos para {nombre_origen}, Caso de uso {nombre_caso_uso} en área {area_negocio}")
-                uploaded_files.append(f"{folder_path}/{filename}")
+
+                # Agregar el archivo subido al diccionario
+                uploaded_files[nombre_origen] = f"{folder_path}/{filename}"
 
                 # Crear tabla o modificarla según el esquema del CSV
                 stg_hook = SnowflakeHook(snowflake_conn_id=SNOWFLAKE_STG_CONN_ID)  # Usamos la conexión de SH_STG
                 create_or_modify_table_from_csv(stg_hook, nombre_origen, csv_file)
             else:
                 logger.error(f"No se encontró el script de extracción en la ruta: {extractor_path} para el origen {nombre_origen} en el caso de uso {nombre_caso_uso} y área de negocio {area_negocio}")
-        return uploaded_files
+    
+        return uploaded_files  # Devolver un diccionario en lugar de una lista
+
 
     # Tarea para cargar archivos a Snowflake
     @task(task_id="load_to_snowflake")
