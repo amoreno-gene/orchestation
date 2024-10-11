@@ -77,20 +77,47 @@ def create_or_modify_table_from_csv(hook, table_name, csv_file):
     cur.close()
 
 # Función para cargar archivos a Snowflake usando COPY INTO
-def load_files_to_snowflake(hook, stage_name, table_name, file_names):
+def load_files_to_snowflake(hook, stage_name, table_name):
     conn = hook.get_conn()
     cur = conn.cursor()
 
-    for file in file_names:
-        logger.info(f"Ejecutando COPY INTO para archivo: {file}")
-        copy_into_sql = f"""
-        COPY INTO {table_name}
-        FROM @{stage_name}/{file}
-        FILE_FORMAT = (FORMAT_NAME = 'my_csv_format')
-        ON_ERROR = 'CONTINUE';
-        """
+    # Ejecutar COPY INTO, filtrando por los archivos no procesados
+    copy_into_sql = f"""
+    COPY INTO {table_name}
+    FROM @{stage_name}
+    FILE_FORMAT = (FORMAT_NAME = 'my_csv_format')
+    FILES = (SELECT METADATA$FILENAME FROM @{stage_name}
+             WHERE METADATA$FILENAME NOT IN (SELECT nombre_archivo FROM SH_CONTROL.archivos_procesados))
+    ON_ERROR = 'CONTINUE';
+    """
+    try:
         cur.execute(copy_into_sql)
+        logger.info(f"COPY INTO ejecutado para la tabla: {table_name}")
+    except Exception as e:
+        logger.error(f"Error al ejecutar COPY INTO para {table_name}: {str(e)}")
+
     cur.close()
+
+# Función para registrar archivos procesados en la tabla SH_CONTROL.archivos_procesados
+def update_processed_files(hook, stage_name):
+    conn = hook.get_conn()
+    cur = conn.cursor()
+
+    # Registrar los archivos cargados en la tabla SH_CONTROL.archivos_procesados
+    insert_processed_sql = f"""
+    INSERT INTO SH_CONTROL.archivos_procesados (nombre_archivo, fecha_procesado)
+    SELECT DISTINCT METADATA$FILENAME, CURRENT_TIMESTAMP()
+    FROM @{stage_name}
+    WHERE METADATA$FILENAME NOT IN (SELECT nombre_archivo FROM SH_CONTROL.archivos_procesados);
+    """
+    try:
+        cur.execute(insert_processed_sql)
+        logger.info("Archivos procesados registrados en la tabla de control SH_CONTROL.archivos_procesados")
+    except Exception as e:
+        logger.error(f"Error al registrar archivos procesados: {str(e)}")
+    
+    cur.close()
+
 
 # Definir DAG
 @dag(
@@ -148,21 +175,33 @@ def dag_main_orquestador_uno():
     
         return uploaded_files  # Devolver un diccionario en lugar de una lista
 
-
     # Tarea para cargar archivos a Snowflake
     @task(task_id="load_to_snowflake")
     def load_to_snowflake(uploaded_files):
         stg_hook = SnowflakeHook(snowflake_conn_id=SNOWFLAKE_STG_CONN_ID)  # Cargar a SH_STG usando la conexión específica
         stage_name = 'my_gcs_stage'
-        for file in uploaded_files:
-            table_name = os.path.basename(file).split('_')[0]  # Usar el nombre del archivo para la tabla
-            load_files_to_snowflake(stg_hook, stage_name, table_name, [file])
+       
+        for nombre_origen, file in uploaded_files.items():
+            table_name = nombre_origen  # Usar el nombre del origen para la tabla
+            load_files_to_snowflake(stg_hook, stage_name, table_name)
+
+    # Tarea para registrar los archivos procesados en la tabla de control
+    @task(task_id="update_processed_files")
+    def update_processed_files(uploaded_files):
+        stg_hook = SnowflakeHook(snowflake_conn_id=SNOWFLAKE_STG_CONN_ID)
+        stage_name = 'my_gcs_stage'
+
+        # Registrar los archivos que han sido cargados a Snowflake
+        for file in uploaded_files.values():
+            logger.info(f"Registrando archivo procesado: {file}")
+            update_processed_files(stg_hook, stage_name)
 
     # Flujo del DAG
     origins = get_active_origins()
     uploaded_files = extract_and_upload_dynamic(origins)
     load_to_snowflake(uploaded_files)
+    update_processed_files(uploaded_files)
 
-    t0 >> origins >> uploaded_files
+    t0 >> origins >> uploaded_files >> load_to_snowflake >> update_processed_files
 
 dag_main_orquestador_uno()
