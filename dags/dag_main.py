@@ -64,13 +64,15 @@ def create_or_modify_table_from_csv(hook, table_name, csv_file):
         # Si la tabla existe, verificar si faltan columnas y agregarlas
         describe_table_query = f"DESCRIBE TABLE {table_name};"
         cur.execute(describe_table_query)
-        existing_columns = [row[0] for row in cur.fetchall()]
+        existing_columns = [row[0].upper() for row in cur.fetchall()]  # Obtener las columnas existentes en mayúsculas
 
         for col in columns:
-            if col not in existing_columns:
+            if col.upper() not in existing_columns:  # Comparar en mayúsculas
                 alter_table_sql = f"ALTER TABLE {table_name} ADD COLUMN {col} STRING;"
                 logger.info(f"Añadiendo columna: {alter_table_sql}")
                 cur.execute(alter_table_sql)
+            else:
+                logger.info(f"La columna '{col}' ya existe en la tabla {table_name}, no se añadirá.")
     
     cur.close()
 
