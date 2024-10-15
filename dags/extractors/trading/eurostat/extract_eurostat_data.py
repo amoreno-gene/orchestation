@@ -2,6 +2,7 @@ import eurostat
 import pandas as pd
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
 
 # Configurar logging para ver las extracciones
 logger = logging.getLogger(__name__)
@@ -42,7 +43,7 @@ def extract_product_data(product, dataset_code, common_filters):
 # Función principal que maneja la extracción en paralelo
 def extract_and_process_data():
     dataset_code = 'DS-045409'
-    products = ['44012100', '44012210', '44012290', '44013100', '44039800']
+    products = ['44012100', '44012210', '44012290', '44013100', '44039800']  # Lista de productos a extraer
     
     common_filters = {
         'flow': ['1'],  # Valor 1 corresponde a IMPORT
@@ -61,20 +62,21 @@ def extract_and_process_data():
             try:
                 data = future.result()
                 if not data.empty:
-                    df_list.append(data)
+                    df_list.append((data, product))  # Guardar tanto los datos como el producto
             except Exception as exc:
                 logger.error(f"Producto {product} generó una excepción: {exc}")
     
-    # Combinar todos los dataframes descargados en uno solo
-    if df_list:
-        final_df = pd.concat(df_list, ignore_index=True)
-
-        # Guardar los datos reestructurados en un archivo CSV
-        output_path = 'filtered_and_despivoted_data.csv'
-        final_df.to_csv(output_path, index=False)
-
-        logger.info(f"Los datos filtrados y reestructurados se han guardado en '{output_path}'.")
-        return output_path
-    else:
+    # Si no hay datos para ninguno de los productos
+    if not df_list:
         logger.error("No se obtuvieron datos para los productos especificados.")
         raise Exception("Fallo en la extracción de datos de Eurostat.")
+
+    # Guardar los datos en archivos CSV y retornar la lista de archivos generados
+    csv_files = []  # Lista de archivos generados
+    for df, product in df_list:
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        filename = f"eurostat_{product}_{timestamp}.csv"
+        df.to_csv(filename, index=False)
+        csv_files.append(filename)  # Añadir a la lista de archivos generados
+
+    return csv_files  # Retornar la lista de archivos CSV

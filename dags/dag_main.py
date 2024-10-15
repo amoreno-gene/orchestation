@@ -140,7 +140,6 @@ def dag_main_orquestador_uno():
         logger.info(f"Orígenes obtenidos: {result}")
         return result
 
-    # Tarea para extraer y subir datos de orígenes activos
     @task(task_id="extract_and_upload_dynamic", multiple_outputs=True)
     def extract_and_upload_dynamic(origins):
         uploaded_files = {}
@@ -156,23 +155,28 @@ def dag_main_orquestador_uno():
 
             if os.path.exists(extractor_path):
                 module = import_module_from_path(nombre_origen.lower(), extractor_path)
-                csv_file = module.extract_and_process_data()  # Llamada a la función de extracción
-                timestamp = dt.now().strftime("%Y%m%d%H%M%S")
-                filename = f"{os.path.splitext(os.path.basename(csv_file))[0]}_{timestamp}.csv"
-                folder_path = f"{area_negocio}/orquestador_{ORQUESTADOR_ID}/origen_{id_origen}/caso_uso_{nombre_caso_uso}"
-                upload_to_gcs(csv_file, filename, folder_path)  # Subida del archivo a GCS
-                logger.info(f"Datos extraídos y subidos para {nombre_origen}, Caso de uso {nombre_caso_uso} en área {area_negocio}")
+                csv_files = module.extract_and_process_data()  # Aquí retornará una lista de archivos CSV
 
-                # Agregar el archivo subido al diccionario
-                uploaded_files[nombre_origen] = f"{folder_path}/{filename}"
+                # Procesar cada archivo CSV generado
+                uploaded_files[nombre_origen] = []
+                for csv_file in csv_files:
+                    timestamp = dt.now().strftime("%Y%m%d%H%M%S")
+                    filename = f"{os.path.splitext(os.path.basename(csv_file))[0]}_{timestamp}.csv"
+                    folder_path = f"{area_negocio}/orquestador_{ORQUESTADOR_ID}/origen_{id_origen}/caso_uso_{nombre_caso_uso}"
+                    upload_to_gcs(csv_file, filename, folder_path)  # Subida del archivo a GCS
+                    logger.info(f"Datos extraídos y subidos para {nombre_origen}, Caso de uso {nombre_caso_uso} en área {area_negocio}")
+                
+                    # Añadir el archivo subido al diccionario
+                    uploaded_files[nombre_origen].append(f"{folder_path}/{filename}")
 
-                # Crear tabla o modificarla según el esquema del CSV
-                stg_hook = SnowflakeHook(snowflake_conn_id=SNOWFLAKE_STG_CONN_ID)  # Usamos la conexión de SH_STG
-                create_or_modify_table_from_csv(stg_hook, nombre_origen, csv_file)
+                    # Crear tabla o modificarla según el esquema del CSV
+                    stg_hook = SnowflakeHook(snowflake_conn_id=SNOWFLAKE_STG_CONN_ID)
+                    create_or_modify_table_from_csv(stg_hook, nombre_origen, csv_file)
             else:
                 logger.error(f"No se encontró el script de extracción en la ruta: {extractor_path} para el origen {nombre_origen} en el caso de uso {nombre_caso_uso} y área de negocio {area_negocio}")
-    
-        return uploaded_files  # Devolver un diccionario en lugar de una lista
+
+        return uploaded_files  # Retorna un diccionario con listas de archivos
+
 
 
     # Tarea para cargar archivos a Snowflake
@@ -180,12 +184,15 @@ def dag_main_orquestador_uno():
     def load_to_snowflake(uploaded_files):
         stg_hook = SnowflakeHook(snowflake_conn_id=SNOWFLAKE_STG_CONN_ID)  # Cargar a SH_STG usando la conexión específica
         stage_name = 'my_gcs_stage'
-        for nombre_origen, file in uploaded_files.items():
-            table_name = nombre_origen  # Usar el nombre del origen para la tabla
-            load_files_to_snowflake(stg_hook, stage_name, table_name)
+    
+        for nombre_origen, files in uploaded_files.items():
+            for file in files:  # Procesar cada archivo CSV del origen
+                table_name = nombre_origen  # Usar el nombre del origen para la tabla
+                load_files_to_snowflake(stg_hook, stage_name, table_name)
 
         # Después de cargar los archivos, actualizar la tabla de control con los archivos procesados
         update_processed_files(stg_hook, stage_name)
+
 
     # Flujo del DAG
     origins = get_active_origins()
