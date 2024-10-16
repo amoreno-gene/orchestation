@@ -24,26 +24,23 @@ os.makedirs(CSV_DIR, exist_ok=True)
 
 # Hardcodear los links de descarga
 page_links = [
-    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_aragon.html",
-    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_andalucia.html",
-    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_catalunya.html",
-    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_castillalamancha.html",
-    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_castillayleon.html",
-    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_cvalenciana.html",
-    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_extremadura.html",
-    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_galicia.html",
-    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_madrid.html",
-    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_murcia.html",
-    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_navarra.html",
-    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_paisvasco.html",
-    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_rioja.html",
-    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_canarias.html",
-    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_baleares.html",
-    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_asturias.html",
-    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_cantabria.html",
-    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_castillalamancha.html",
-    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_melilla.html",
-    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_ceuta.html"
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_aragon.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_andalucia.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_catalunya.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_castilla_la_mancha.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_castilla_y_leon.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_comunidad_valenciana.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_extremadura.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_galicia.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_comunidad_madrid.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_murcia.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_navarra.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_pais_vasco.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_rioja.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_canarias.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_baleares.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_asturias.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_cantabria.html"
 ]
 
 def extract_and_process_data():
