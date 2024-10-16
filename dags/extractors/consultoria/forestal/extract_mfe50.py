@@ -107,7 +107,7 @@ def extract_and_process_data():
                 # Leer el shapefile con Dask GeoPandas y guardarlo como CSV
                 logger.info(f"Convirtiendo {file} a CSV usando Dask...")
                 try:
-                    gdf = dgpd.read_file(shp_path)  # Leer con Dask GeoPandas
+                    gdf = dgpd.read_file(shp_path,chunksize=10000)  # Leer con Dask GeoPandas
                     df = gdf.compute()  # Convierte a un DataFrame de Pandas
                     df.to_csv(csv_path, index=False)
                     csv_files.append(csv_path)
