@@ -12,6 +12,7 @@ BASE_URL = "https://www.miteco.gob.es/es/biodiversidad/servicios/banco-datos-nat
 DOWNLOAD_DIR = "/home/airflow/gcs/data/descargas_mfe50"  # Ruta en Composer
 EXTRACT_DIR = "/home/airflow/gcs/data/shapefiles_mfe50"
 CSV_DIR = "/home/airflow/gcs/data/csv_mfe50"
+FINAL_CSV = "/home/airflow/gcs/data/csv_mfe50/final_mfe50.csv"
 
 # Configuración de logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -21,6 +22,7 @@ logger = logging.getLogger()
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 os.makedirs(EXTRACT_DIR, exist_ok=True)
 os.makedirs(CSV_DIR, exist_ok=True)
+
 
 # Hardcodear los links de descarga
 page_links = [
@@ -43,9 +45,8 @@ page_links = [
     "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_cantabria.html"
 ]
 
-def extract_and_process_data():
-    csv_files = []  # Lista para almacenar los CSV generados
-
+# Función para descargar y extraer archivos ZIP
+def download_and_extract_zip():
     for page_link in page_links:
         page_url = f"https://www.miteco.gob.es{page_link}"
         logger.info(f"Accediendo a la página: {page_url}")
@@ -83,27 +84,43 @@ def extract_and_process_data():
             except zipfile.BadZipFile:
                 logger.error(f"Error al extraer {zip_name}: archivo ZIP corrupto.")
 
+# Función para procesar shapefiles y combinar en un solo CSV
+def process_shapefiles_to_single_csv():
+    combined_df = pd.DataFrame()
+
     # Buscar y convertir los shapefiles a CSV
     for root, _, files in os.walk(EXTRACT_DIR):
         for file in files:
             if file.endswith(".shp"):
                 shp_path = os.path.join(root, file)
-                csv_name = f"{os.path.splitext(file)[0]}.csv"
-                csv_path = os.path.join(CSV_DIR, csv_name)
 
-                # Leer el shapefile con GeoPandas y guardarlo como CSV
-                logger.info(f"Convirtiendo {file} a CSV...")
+                # Leer el shapefile con GeoPandas y agregar al DataFrame combinado
+                logger.info(f"Convirtiendo {file} a DataFrame...")
                 try:
                     gdf = gpd.read_file(shp_path)
                     df = pd.DataFrame(gdf)
-                    # Añadir la columna de provincia basada en el nombre del archivo shapefile
+                    # Añadir columna de provincia basada en el nombre del archivo shapefile
                     provincia = os.path.basename(root)
                     df["provincia"] = provincia
-                    df.to_csv(csv_path, index=False)
-                    csv_files.append(csv_path)
-                    logger.info(f"Conversión de {file} a CSV completada.")
+                    combined_df = pd.concat([combined_df, df], ignore_index=True)
+                    logger.info(f"Conversión de {file} completada.")
                 except Exception as e:
-                    logger.error(f"Error al convertir {file} a CSV: {e}")
+                    logger.error(f"Error al convertir {file} a DataFrame: {e}")
+
+    # Guardar el DataFrame combinado en un archivo CSV
+    combined_df.to_csv(FINAL_CSV, index=False)
+    logger.info(f"CSV final guardado en {FINAL_CSV}")
+
+    # Retornar la lista con el único CSV generado
+    return [FINAL_CSV]
+
+# Función principal para ser llamada desde el orquestador
+def extract_and_process_data():
+    # Descargar y extraer los archivos ZIP
+    download_and_extract_zip()
+
+    # Procesar los shapefiles y generar un CSV final
+    generated_csvs = process_shapefiles_to_single_csv()
 
     # Retornar la lista de archivos CSV generados
-    return csv_files
+    return generated_csvs
