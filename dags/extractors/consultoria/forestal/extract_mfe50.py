@@ -89,12 +89,26 @@ def extract_and_process_data():
                 except Exception as e:
                     logger.error(f"Error al convertir {file} a CSV: {e}")
 
-    # Combinar todos los CSVs en uno solo
-    logger.info("Combinando todos los CSVs en uno solo...")
+    # Combinar todos los CSVs en uno solo de forma incremental
+    logger.info("Combinando todos los CSVs en uno solo de forma incremental...")
     try:
-        dataframes = [pd.read_csv(csv_file) for csv_file in csv_files]
-        combined_df = pd.concat(dataframes, ignore_index=True)
-        combined_df.to_csv(FINAL_CSV_PATH, index=False)
+        with open(FINAL_CSV_PATH, 'w') as final_csv:
+            header_written = False
+
+            for csv_file in csv_files:
+                try:
+                    for chunk in pd.read_csv(csv_file, chunksize=10000):
+                        # Escribir encabezado solo una vez
+                        if not header_written:
+                            chunk.to_csv(final_csv, index=False, mode='a')
+                            header_written = True
+                        else:
+                            chunk.to_csv(final_csv, index=False, mode='a', header=False)
+
+                    logger.info(f"CSV {csv_file} añadido al archivo combinado.")
+                except Exception as e:
+                    logger.error(f"Error al combinar el archivo {csv_file}: {e}")
+
         logger.info(f"CSV combinado guardado en {FINAL_CSV_PATH}")
     except Exception as e:
         logger.error(f"Error al combinar los CSVs: {e}")
