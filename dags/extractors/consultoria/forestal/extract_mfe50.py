@@ -25,9 +25,23 @@ os.makedirs(CSV_DIR, exist_ok=True)
 
 # Hardcodear los links de descarga
 page_links = [
-    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_aragon.html",
-    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_andalucia.html",
-    # Agregar el resto de links...
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_aragon.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_andalucia.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_catalunya.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_castilla_la_mancha.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_castilla_y_leon.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_comunidad_valenciana.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_extremadura.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_galicia.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_comunidad_madrid.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_murcia.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_navarra.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_pais_vasco.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_rioja.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_canarias.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_baleares.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_asturias.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_cantabria.html"
 ]
 
 def download_and_extract(zip_links):
