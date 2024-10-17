@@ -24,9 +24,23 @@ os.makedirs(CSV_DIR, exist_ok=True)
 
 # Hardcodear los links de descarga
 page_links = [
-    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_aragon.html",
-    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_andalucia.html",
-    # Agregar el resto de links...
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_aragon.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_andalucia.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_catalunya.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_castilla_la_mancha.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_castilla_y_leon.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_comunidad_valenciana.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_extremadura.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_galicia.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_comunidad_madrid.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_murcia.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_navarra.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_pais_vasco.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_rioja.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_canarias.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_baleares.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_asturias.html",
+    "/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_cantabria.html"
 ]
 
 def extract_and_process_data():
@@ -83,6 +97,7 @@ def extract_and_process_data():
                 try:
                     gdf = dgpd.read_file(shp_path, chunksize=10000)  # Leer con Dask GeoPandas
                     df = gdf.compute()  # Convierte a un DataFrame de Pandas
+                    df["archivo_origen"] = csv_name  # Añadir columna de archivo de origen
                     df.to_csv(csv_path, index=False)
                     csv_files.append(csv_path)
                     logger.info(f"Conversión de {file} a CSV completada.")
@@ -92,12 +107,26 @@ def extract_and_process_data():
     # Combinar todos los CSVs en uno solo de forma incremental
     logger.info("Combinando todos los CSVs en uno solo de forma incremental...")
     try:
+        all_columns = set()
+        # Obtener todas las columnas presentes en los CSVs para ordenarlas consistentemente
+        for csv_file in csv_files:
+            df = pd.read_csv(csv_file, nrows=1)
+            all_columns.update(df.columns)
+
+        all_columns = sorted(all_columns)  # Ordenar todas las columnas
+
         with open(FINAL_CSV_PATH, 'w') as final_csv:
             header_written = False
 
             for csv_file in csv_files:
                 try:
                     for chunk in pd.read_csv(csv_file, chunksize=10000):
+                        # Añadir las columnas faltantes con valores NaN y reordenar
+                        missing_columns = set(all_columns) - set(chunk.columns)
+                        for col in missing_columns:
+                            chunk[col] = pd.NA
+                        chunk = chunk[all_columns]
+
                         # Escribir encabezado solo una vez
                         if not header_written:
                             chunk.to_csv(final_csv, index=False, mode='a')
