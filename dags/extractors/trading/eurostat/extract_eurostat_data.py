@@ -8,17 +8,13 @@ from datetime import datetime
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Función que obtiene la lista de países disponibles desde Eurostat
+# Función que obtiene la lista de países disponibles para 'reporter' desde Eurostat
 def get_available_countries(dataset_code):
     try:
-        parameters = eurostat.get_parameters(dataset_code)
-        if 'reporter' in parameters:
-            countries = parameters['reporter']  # Lista de todos los países que reportan
-            logger.info(f"Países disponibles obtenidos: {countries}")
-            return countries
-        else:
-            logger.error("No se encontró el parámetro 'reporter' en los datos de Eurostat.")
-            return []
+        # Usar get_par_values para obtener los valores del parámetro 'reporter'
+        countries = eurostat.get_par_values(dataset_code, 'reporter')
+        logger.info(f"Países disponibles: {countries}")
+        return countries
     except Exception as e:
         logger.error(f"Error al obtener los países disponibles: {e}")
         return []
