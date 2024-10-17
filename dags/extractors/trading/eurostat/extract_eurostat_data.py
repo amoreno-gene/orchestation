@@ -46,9 +46,7 @@ def extract_and_process_data():
     products = ['44012100', '44012210', '44012290', '44013100', '44039800']  # Lista de productos a extraer
     
     common_filters = {
-        'flow': ['1'],  # Valor 1 corresponde a IMPORT
-        'freq': ['M'],  # Solo datos mensuales
-        'partner': ['WORLD'],  # Solo datos con el socio 'WORLD'
+        'freq': ['M']  # Solo datos mensuales
     }
 
     df_list = []
