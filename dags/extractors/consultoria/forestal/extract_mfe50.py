@@ -5,6 +5,7 @@ import dask_geopandas as dgpd
 import pandas as pd
 from bs4 import BeautifulSoup
 import logging
+from datetime import datetime
 
 # Configuración de la URL base y del directorio de trabajo
 BASE_URL = "https://www.miteco.gob.es/es/biodiversidad/servicios/banco-datos-naturaleza/informacion-disponible/mfe50_descargas_ccaa.html"
@@ -97,7 +98,8 @@ def extract_and_process_data():
                 try:
                     gdf = dgpd.read_file(shp_path, chunksize=10000)  # Leer con Dask GeoPandas
                     df = gdf.compute()  # Convierte a un DataFrame de Pandas
-                    df["archivo_origen"] = csv_name  # Añadir columna de archivo de origen
+                    df["archivo_origen"] = os.path.basename(shp_path)  # Añadir columna con el nombre del archivo origen
+                    df["hora_extraccion"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Añadir columna con la hora de extracción
                     df.to_csv(csv_path, index=False)
                     csv_files.append(csv_path)
                     logger.info(f"Conversión de {file} a CSV completada.")
@@ -108,12 +110,11 @@ def extract_and_process_data():
     logger.info("Combinando todos los CSVs en uno solo de forma incremental...")
     try:
         all_columns = set()
-        # Obtener todas las columnas presentes en los CSVs para ordenarlas consistentemente
+
+        # Obtener todas las columnas presentes en los CSVs
         for csv_file in csv_files:
             df = pd.read_csv(csv_file, nrows=1)
             all_columns.update(df.columns)
-
-        all_columns = sorted(all_columns)  # Ordenar todas las columnas
 
         with open(FINAL_CSV_PATH, 'w') as final_csv:
             header_written = False
@@ -121,11 +122,12 @@ def extract_and_process_data():
             for csv_file in csv_files:
                 try:
                     for chunk in pd.read_csv(csv_file, chunksize=10000):
-                        # Añadir las columnas faltantes con valores NaN y reordenar
-                        missing_columns = set(all_columns) - set(chunk.columns)
+                        # Añadir las columnas faltantes con valores NaN
+                        missing_columns = all_columns - set(chunk.columns)
                         for col in missing_columns:
                             chunk[col] = pd.NA
-                        chunk = chunk[all_columns]
+                        # Reordenar las columnas para asegurar que el orden sea el mismo
+                        chunk = chunk[list(sorted(all_columns))]
 
                         # Escribir encabezado solo una vez
                         if not header_written:
