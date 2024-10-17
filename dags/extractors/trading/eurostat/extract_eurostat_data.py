@@ -46,7 +46,8 @@ def extract_and_process_data():
     products = ['44012100', '44012210', '44012290', '44013100', '44039800']  # Lista de productos a extraer
     
     common_filters = {
-        'freq': ['M']  # Solo datos mensuales
+        'freq': ['M'],  # Solo datos mensuales
+        'time_period': [str(year) for year in range(2020, datetime.now().year + 1)]
     }
 
     df_list = []
