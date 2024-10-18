@@ -41,7 +41,7 @@ def extract_data_for_country_and_year(country, year, dataset_code, common_filter
         return pd.DataFrame()  # Retorna un DataFrame vacío en caso de error
 
 # Función principal que maneja la extracción en paralelo, guardando los resultados incrementalmente
-def extract_and_process_data_in_chunks():
+def extract_and_process_data():
     dataset_code = 'DS-045409'  # Código del dataset en Eurostat
     
     # Generar un rango de años desde 2020 hasta el año actual
@@ -92,7 +92,7 @@ def extract_and_process_data_in_chunks():
 # Ejecución del script de extracción
 if __name__ == "__main__":
     try:
-        final_csv_file = extract_and_process_data_in_chunks()
+        final_csv_file = extract_and_process_data()
         if final_csv_file:
             logger.info(f"Extracción completada. Archivo generado: {final_csv_file}")
         else:
