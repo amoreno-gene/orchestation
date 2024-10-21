@@ -1,7 +1,6 @@
 import eurostat
 import pandas as pd
 import logging
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 import os
 
@@ -31,17 +30,30 @@ def extract_data_for_product_country_year(product, country, year, dataset_code, 
         data = eurostat.get_data_df(dataset_code, filter_pars=my_filter_pars)
         
         # Despivoteo del dataframe
-        melted_data = data.melt(id_vars=['freq', 'reporter', 'partner', 'product', 'flow', 'indicators\\TIME_PERIOD'], 
+        melted_data = data.melt(id_vars=['freq', 'reporter', 'partner', 'product', 'flow', 'indicators\TIME_PERIOD'], 
                                 var_name='DATE', value_name='VALUE')
 
+        # Reestructurar el dataframe con las columnas deseadas
+        pivoted_data = melted_data.pivot_table(index=['DATE', 'reporter', 'partner', 'product'], 
+                                               columns='indicators\TIME_PERIOD', values='VALUE', 
+                                               aggfunc='first').reset_index()
+
+        # Renombrar las columnas
+        pivoted_data.columns.name = None
+        pivoted_data = pivoted_data.rename(columns={
+            'QUANTITY_IN_100KG': 'QUANTITY_IN_100KG',
+            'SUPPLEMENTARY_QUANTITY': 'SUPPLEMENTARY_QUANTITY',
+            'VALUE_IN_EUROS': 'VALUE_IN_EUROS'
+        })
+
         logger.info(f"Datos descargados y procesados para el producto {product}, el año {year} y el país {country}")
-        return melted_data
+        return pivoted_data
 
     except Exception as e:
         logger.error(f"Error al descargar datos para el producto {product}, el año {year} y el país {country}: {e}")
         return pd.DataFrame()  # Retorna un DataFrame vacío en caso de error
 
-# Función principal que maneja la extracción en paralelo, guardando los resultados incrementalmente
+# Función principal que maneja la extracción en secuencia, guardando los resultados incrementalmente
 def extract_and_process_data():
     dataset_code = 'DS-045409'  # Código del dataset en Eurostat
     
@@ -62,36 +74,35 @@ def extract_and_process_data():
         logger.error("No se pudieron obtener los países o productos disponibles.")
         return []
 
-    # Definir el archivo CSV final
-    final_csv_filename = f"eurostat_data_combined_{datetime.now().strftime('%Y%m%d%H%M%S')}.csv"
+    # Crear una lista para almacenar los datos descargados
+    df_list = []
 
-    # Variable para saber si ya se ha escrito el encabezado
-    header_written = False
+    # Iterar sobre cada combinación de producto, país y año
+    for product in products:
+        for country in countries:
+            for year in years:
+                try:
+                    data = extract_data_for_product_country_year(product, country, year, dataset_code, common_filters)
+                    if not data.empty:
+                        # Añadir los datos descargados a la lista
+                        df_list.append(data)
+                        logger.info(f"Datos del producto {product}, país {country} y año {year} procesados.")
+                except Exception as exc:
+                    logger.error(f"Producto {product}, país {country} para el año {year} generó una excepción: {exc}")
 
-    # Crear un pool de threads para ejecutar las extracciones en paralelo
-    with ThreadPoolExecutor(max_workers=5) as executor:  # Ajusta el número de hilos según sea necesario
-        # Dividir la extracción por producto, país y año
-        future_to_product_country_year = {
-            executor.submit(extract_data_for_product_country_year, product, country, year, dataset_code, common_filters): (product, country, year)
-            for product in products for country in countries for year in years
-        }
+    # Combinar todos los dataframes descargados en uno solo
+    if df_list:
+        final_df = pd.concat(df_list, ignore_index=True)
 
-        # Procesar los resultados a medida que se completen
-        for future in as_completed(future_to_product_country_year):
-            product, country, year = future_to_product_country_year[future]
-            try:
-                data = future.result()
-                if not data.empty:
-                    # Guardar los datos en el CSV de forma incremental
-                    mode = 'a' if header_written else 'w'
-                    data.to_csv(final_csv_filename, mode=mode, header=not header_written, index=False)
-                    header_written = True  # Asegurar que el encabezado solo se escriba una vez
-                    logger.info(f"Datos del producto {product}, país {country} y año {year} guardados en {final_csv_filename}")
-            except Exception as exc:
-                logger.error(f"Producto {product}, país {country} para el año {year} generó una excepción: {exc}")
+        # Guardar los datos reestructurados en un archivo CSV
+        final_csv_filename = f"eurostat_data_combined_{datetime.now().strftime('%Y%m%d%H%M%S')}.csv"
+        final_df.to_csv(final_csv_filename, index=False)
 
-    logger.info(f"Extracción completada. Archivo final: {final_csv_filename}")
-    return [final_csv_filename]  # Retornar una lista con la ruta del archivo CSV generado
+        logger.info(f"Extracción completada. Archivo final: {final_csv_filename}")
+        return [final_csv_filename]  # Retornar una lista con la ruta del archivo CSV generado
+    else:
+        logger.error("No se obtuvieron datos para los productos y países especificados.")
+        return []
 
 # Ejecución del script de extracción
 if __name__ == "__main__":
