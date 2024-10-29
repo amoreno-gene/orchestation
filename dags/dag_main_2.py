@@ -124,7 +124,7 @@ def update_processed_files(hook, stage_name):
     schedule_interval="@weekly",
     catchup=False,
 )
-def dag_main_orquestador_uno():
+def dag_main_orquestador_2():
     t0 = DummyOperator(task_id="start")
 
     # Tarea para consultar orígenes activos y el caso de uso en Snowflake
@@ -203,5 +203,5 @@ def dag_main_orquestador_uno():
     t0 >> origins >> uploaded_files >> load_to_snowflake_task
 
 # Instancia del DAG
-dag_main_orquestador_uno()
+dag_main_orquestador_2()
 
