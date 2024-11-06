@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 # Consulta SQL para obtener la fecha máxima de datos en Snowflake
 SNOWFLAKE_FROM_QUERY = "SELECT MAX(DATE) FROM GENERANDIDEVDB.SH_STG.EUROSTAT_DATA;"
 
-# Función que obtiene la fecha máxima en Snowflake y calcula el inicio de extracción restando dos meses
+
 def get_active_origins():
     logger.info("Iniciando la función get_active_origins")
     hook = SnowflakeHook(snowflake_conn_id='Snowflake_stg_schema_conn')  # Conexión configurada en Google Cloud
@@ -25,13 +25,19 @@ def get_active_origins():
     cur.close()
     
     if result and result[0]:
+        # Convertir max_date a un objeto datetime si es una cadena
         max_date = result[0]
-        start_date = max_date - relativedelta(months=2)  # Restar dos meses
+        if isinstance(max_date, str):
+            max_date = datetime.strptime(max_date, '%Y-%m-%d')  # Ajusta el formato según el formato de la fecha en Snowflake
+        
+        # Calcular la fecha de inicio restando dos meses
+        start_date = max_date - relativedelta(months=2)
         logger.info(f"Fecha máxima en Snowflake: {max_date}, extrayendo desde: {start_date}")
         return start_date
     else:
         logger.warning("No se encontró una fecha máxima en Snowflake. Se usará una fecha por defecto.")
         return datetime(2020, 1, 1)  # Fecha de inicio por defecto
+
 
 # Función que obtiene la lista de valores disponibles para un parámetro desde Eurostat
 def get_available_values(dataset_code, parameter):
