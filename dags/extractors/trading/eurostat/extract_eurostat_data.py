@@ -11,15 +11,16 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Consulta SQL para obtener la fecha máxima de datos en Snowflake
-SNOWFLAKE_ORIGINS_QUERY = "SELECT MAX(DATE) FROM GENERANDIDEVDB.SH_STG.EUROSTAT_DATA;"
+SNOWFLAKE_FROM_QUERY = "SELECT MAX(DATE) FROM GENERANDIDEVDB.SH_STG.EUROSTAT_DATA;"
 
 # Función que obtiene la fecha máxima en Snowflake y calcula el inicio de extracción restando dos meses
 def get_active_origins():
+    logger.info("Iniciando la función get_active_origins")
     hook = SnowflakeHook(snowflake_conn_id='Snowflake_stg_schema_conn')  # Conexión configurada en Google Cloud
     conn = hook.get_conn()
     cur = conn.cursor()
     logger.info("Consultando fecha máxima desde Snowflake...")
-    cur.execute(SNOWFLAKE_ORIGINS_QUERY)
+    cur.execute(SNOWFLAKE_FROM_QUERY)
     result = cur.fetchone()
     cur.close()
     
@@ -149,6 +150,7 @@ def extract_and_process_data(start_date):
 if __name__ == "__main__":
     try:
         start_date = get_active_origins()
+        logger.info(f"Fecha obtenida de Snowflake: {start_date}")
         final_csv_files = extract_and_process_data(start_date)  # Pasa `start_date` calculado
         if final_csv_files:
             logger.info(f"Extracción completada. Archivos generados: {final_csv_files}")
