@@ -123,7 +123,7 @@ def update_processed_files(hook, stage_name):
 # Definir DAG
 @dag(
     start_date=days_ago(1),
-    schedule_interval="@weekly",
+    schedule_interval="0 0 14 * *",  # Ejecuta el DAG el día 14 de cada mes a medianoche
     catchup=False,
 )
 def dag_main_orquestador_2():
