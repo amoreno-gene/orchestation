@@ -87,8 +87,11 @@ def extract_data_for_product_country_year(product, country, year, flow, dataset_
         logger.error(f"Error al descargar datos para el producto {product}, el año {year}, el flujo {flow} y el país {country}: {e}")
         return pd.DataFrame()  # Retorna un DataFrame vacío en caso de error
 
-# Función principal que maneja la extracción en secuencia, guardando los resultados incrementalmente
-def extract_and_process_data(start_date):
+def extract_and_process_data():
+    # Obtener la fecha de inicio llamando a get_active_origins
+    start_date = get_active_origins()
+    logger.info(f"Fecha de inicio de extracción obtenida: {start_date}")
+
     dataset_code = 'DS-045409'  # Código del dataset en Eurostat
     
     # Generar un rango de años desde la fecha de inicio calculada hasta el año actual
