@@ -2,11 +2,35 @@ import eurostat
 import pandas as pd
 import logging
 from datetime import datetime
+from dateutil.relativedelta import relativedelta
+from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 import os
 
 # Configurar logging para ver las extracciones
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Consulta SQL para obtener la fecha máxima de datos en Snowflake
+SNOWFLAKE_ORIGINS_QUERY = "SELECT MAX(DATE) FROM GENERANDIDEVDB.SH_STG.EUROSTAT_DATA;"
+
+# Función que obtiene la fecha máxima en Snowflake y calcula el inicio de extracción restando dos meses
+def get_active_origins():
+    hook = SnowflakeHook(snowflake_conn_id="SNOWFLAKE_CONN_ID")  # Conexión configurada en Google Cloud
+    conn = hook.get_conn()
+    cur = conn.cursor()
+    logger.info("Consultando fecha máxima desde Snowflake...")
+    cur.execute(SNOWFLAKE_ORIGINS_QUERY)
+    result = cur.fetchone()
+    cur.close()
+    
+    if result and result[0]:
+        max_date = result[0]
+        start_date = max_date - relativedelta(months=2)  # Restar dos meses
+        logger.info(f"Fecha máxima en Snowflake: {max_date}, extrayendo desde: {start_date}")
+        return start_date
+    else:
+        logger.warning("No se encontró una fecha máxima en Snowflake. Se usará una fecha por defecto.")
+        return datetime(2020, 1, 1)  # Fecha de inicio por defecto
 
 # Función que obtiene la lista de valores disponibles para un parámetro desde Eurostat
 def get_available_values(dataset_code, parameter):
@@ -63,11 +87,11 @@ def extract_data_for_product_country_year(product, country, year, flow, dataset_
         return pd.DataFrame()  # Retorna un DataFrame vacío en caso de error
 
 # Función principal que maneja la extracción en secuencia, guardando los resultados incrementalmente
-def extract_and_process_data():
+def extract_and_process_data(start_date):
     dataset_code = 'DS-045409'  # Código del dataset en Eurostat
     
-    # Generar un rango de años desde 2020 hasta el año actual
-    years = list(range(2020, datetime.now().year + 1))
+    # Generar un rango de años desde la fecha de inicio calculada hasta el año actual
+    years = list(range(start_date.year, datetime.now().year + 1))
 
     # Obtener la lista de todos los países disponibles desde Eurostat
     countries = get_available_countries(dataset_code)
@@ -93,11 +117,15 @@ def extract_and_process_data():
     for product in products:
         for country in countries:
             for year in years:
+                if year < start_date.year:
+                    continue  # Saltar años anteriores a start_date
+                
                 for flow in flows:
                     try:
                         data = extract_data_for_product_country_year(product, country, year, flow, dataset_code, common_filters)
                         if not data.empty:
-                            # Añadir los datos descargados a la lista
+                            # Filtrar los datos obtenidos por la fecha exacta en caso de que start_date esté en el mismo año
+                            data = data[data['DATE'] >= start_date.strftime('%Y-%m-%d')]
                             df_list.append(data)
                             logger.info(f"Datos del producto {product}, país {country}, año {year} y flujo {flow} procesados.")
                     except Exception as exc:
@@ -120,7 +148,8 @@ def extract_and_process_data():
 # Ejecución del script de extracción
 if __name__ == "__main__":
     try:
-        final_csv_files = extract_and_process_data()  # Ahora retorna una lista
+        start_date = get_active_origins()
+        final_csv_files = extract_and_process_data(start_date)  # Pasa `start_date` calculado
         if final_csv_files:
             logger.info(f"Extracción completada. Archivos generados: {final_csv_files}")
         else:
