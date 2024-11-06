@@ -3,6 +3,8 @@ from airflow.decorators import dag, task
 from airflow.operators.dummy import DummyOperator
 from airflow.utils.dates import days_ago
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+from airflow.providers.dbt.cloud.operators.dbt import DbtCloudRunJobOperator  # Importa el operador de dbt
+from airflow.models import Variable
 import os
 import logging
 import importlib
@@ -193,6 +195,17 @@ def dag_main_orquestador_2():
         # Después de cargar los archivos, actualizar la tabla de control con los archivos procesados
         update_processed_files(stg_hook, stage_name)
 
+  # Obtener Job ID de dbt desde la variable de entorno
+    dbt_job_id = Variable.get('dbt_orchestator_2_job')
+
+    # Tarea para ejecutar un trabajo de dbt Cloud al final del flujo
+    run_dbt_job = DbtCloudRunJobOperator(
+        task_id='run_dbt_job',
+        dbt_cloud_conn_id='dbt_cloud_conn',  # Connection ID de dbt Cloud en Airflow
+        job_id=dbt_job_id,  # Utilizar el Job ID de dbt desde la variable
+        check_interval=10,  # Intervalo de verificación en segundos
+        timeout=300,  # Tiempo de espera en segundos
+    )
 
     # Flujo del DAG
     origins = get_active_origins()
@@ -200,7 +213,7 @@ def dag_main_orquestador_2():
     load_to_snowflake_task = load_to_snowflake(uploaded_files)
 
     # Definir la secuencia de tareas
-    t0 >> origins >> uploaded_files >> load_to_snowflake_task
+    t0 >> origins >> uploaded_files >> load_to_snowflake_task >> run_dbt_job
 
 # Instancia del DAG
 dag_main_orquestador_2()
