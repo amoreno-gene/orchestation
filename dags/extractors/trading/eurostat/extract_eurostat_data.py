@@ -15,7 +15,7 @@ SNOWFLAKE_ORIGINS_QUERY = "SELECT MAX(DATE) FROM GENERANDIDEVDB.SH_STG.EUROSTAT_
 
 # Función que obtiene la fecha máxima en Snowflake y calcula el inicio de extracción restando dos meses
 def get_active_origins():
-    hook = SnowflakeHook(snowflake_conn_id="SNOWFLAKE_CONN_ID")  # Conexión configurada en Google Cloud
+    hook = SnowflakeHook(snowflake_conn_id='Snowflake_stg_schema_conn')  # Conexión configurada en Google Cloud
     conn = hook.get_conn()
     cur = conn.cursor()
     logger.info("Consultando fecha máxima desde Snowflake...")
