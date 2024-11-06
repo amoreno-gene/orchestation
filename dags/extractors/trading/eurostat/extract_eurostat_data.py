@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 SNOWFLAKE_FROM_QUERY = "SELECT MAX(DATE) FROM GENERANDIDEVDB.SH_STG.EUROSTAT_DATA;"
 
 
+from datetime import datetime
+
 def get_active_origins():
     logger.info("Iniciando la función get_active_origins")
     hook = SnowflakeHook(snowflake_conn_id='Snowflake_stg_schema_conn')  # Conexión configurada en Google Cloud
@@ -28,7 +30,10 @@ def get_active_origins():
         # Convertir max_date a un objeto datetime si es una cadena
         max_date = result[0]
         if isinstance(max_date, str):
-            max_date = datetime.strptime(max_date, '%Y-%m-%d')  # Ajusta el formato según el formato de la fecha en Snowflake
+            # Intentar parsear con el formato '%Y-%m' si solo tiene año y mes
+            max_date = datetime.strptime(max_date, '%Y-%m')
+            # Asignar el día al primero del mes
+            max_date = max_date.replace(day=1)
         
         # Calcular la fecha de inicio restando dos meses
         start_date = max_date - relativedelta(months=2)
@@ -36,7 +41,7 @@ def get_active_origins():
         return start_date
     else:
         logger.warning("No se encontró una fecha máxima en Snowflake. Se usará una fecha por defecto.")
-        return datetime(2020, 1, 1)  # Fecha de inicio por defecto
+        return datetime(2024, 10)  # Fecha de inicio por defecto
 
 
 # Función que obtiene la lista de valores disponibles para un parámetro desde Eurostat
@@ -53,16 +58,15 @@ def get_available_values(dataset_code, parameter):
 def get_available_countries(dataset_code):
     return get_available_values(dataset_code, 'reporter')
 
-# Función que realiza la extracción de datos para un país, producto y año específico
-def extract_data_for_product_country_year(product, country, year, flow, dataset_code, common_filters):
+def extract_data_for_product_country_year(product, country, formatted_month, flow, dataset_code, common_filters):
     my_filter_pars = common_filters.copy()
-    my_filter_pars['time_period'] = [str(year)]  # Filtrar por año específico
+    my_filter_pars['time_period'] = [formatted_month]  # Filtrar por año-mes específico
     my_filter_pars['reporter'] = [country]  # Filtrar por país que reporta (reporter)
     my_filter_pars['product'] = [product]  # Filtrar por producto específico
     my_filter_pars['flow'] = [flow]  # Filtrar por flujo específico
     
     try:
-        logger.info(f"Descargando datos para el producto {product}, el año {year}, el flujo {flow} y el país {country}...")
+        logger.info(f"Descargando datos para el producto {product}, el mes {formatted_month}, el flujo {flow} y el país {country}...")
         data = eurostat.get_data_df(dataset_code, filter_pars=my_filter_pars)
         
         # Despivoteo del dataframe
@@ -86,12 +90,13 @@ def extract_data_for_product_country_year(product, country, year, flow, dataset_
         if 'freq' not in pivoted_data.columns:
             pivoted_data['FREQ'] = my_filter_pars.get('freq', ['M'])[0]  # Añadir frecuencia por defecto si no existe
 
-        logger.info(f"Datos descargados y procesados para el producto {product}, el año {year}, el flujo {flow} y el país {country}")
+        logger.info(f"Datos descargados y procesados para el producto {product}, el mes {formatted_month}, el flujo {flow} y el país {country}")
         return pivoted_data
 
     except Exception as e:
-        logger.error(f"Error al descargar datos para el producto {product}, el año {year}, el flujo {flow} y el país {country}: {e}")
+        logger.error(f"Error al descargar datos para el producto {product}, el mes {formatted_month}, el flujo {flow} y el país {country}: {e}")
         return pd.DataFrame()  # Retorna un DataFrame vacío en caso de error
+
 
 def extract_and_process_data():
     # Obtener la fecha de inicio llamando a get_active_origins
@@ -100,8 +105,9 @@ def extract_and_process_data():
 
     dataset_code = 'DS-045409'  # Código del dataset en Eurostat
     
-    # Generar un rango de años desde la fecha de inicio calculada hasta el año actual
-    years = list(range(start_date.year, datetime.now().year + 1))
+    # Generar un rango de fechas mensuales desde la fecha de inicio calculada hasta el mes actual
+    end_date = datetime.now()
+    date_range = pd.date_range(start=start_date, end=end_date, freq='MS')  # Frecuencia de inicio de mes (MS)
 
     # Obtener la lista de todos los países disponibles desde Eurostat
     countries = get_available_countries(dataset_code)
@@ -123,23 +129,23 @@ def extract_and_process_data():
     # Crear una lista para almacenar los datos descargados
     df_list = []
 
-    # Iterar sobre cada combinación de producto, país, año y flujo
+    # Iterar sobre cada combinación de producto, país, mes y flujo
     for product in products:
         for country in countries:
-            for year in years:
-                if year < start_date.year:
-                    continue  # Saltar años anteriores a start_date
+            for single_date in date_range:
+                year = single_date.year
+                month = single_date.month
+                formatted_month = f"{year}-{month:02d}"  # Formato 'YYYY-MM'
                 
                 for flow in flows:
                     try:
-                        data = extract_data_for_product_country_year(product, country, year, flow, dataset_code, common_filters)
+                        data = extract_data_for_product_country_year(product, country, formatted_month, flow, dataset_code, common_filters)
                         if not data.empty:
-                            # Filtrar los datos obtenidos por la fecha exacta en caso de que start_date esté en el mismo año
-                            data = data[data['DATE'] >= start_date.strftime('%Y-%m-%d')]
+                            # Agregar los datos extraídos al DataFrame acumulativo
                             df_list.append(data)
-                            logger.info(f"Datos del producto {product}, país {country}, año {year} y flujo {flow} procesados.")
+                            logger.info(f"Datos del producto {product}, país {country}, mes {formatted_month} y flujo {flow} procesados.")
                     except Exception as exc:
-                        logger.error(f"Producto {product}, país {country}, año {year} y flujo {flow} generó una excepción: {exc}")
+                        logger.error(f"Producto {product}, país {country}, mes {formatted_month} y flujo {flow} generó una excepción: {exc}")
 
     # Combinar todos los dataframes descargados en uno solo
     if df_list:
